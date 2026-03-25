@@ -1,0 +1,8 @@
+[default.databases.apollo]
+# this assumes the test database as initialized by the given script
+# is hosted at localhost:8005
+url = "postgres://postgres:1234@localhost:8005/apollo"
+
+[default.limits]
+file = "10 MiB"
+data-form = "15 MiB"

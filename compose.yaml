@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres
+    environment:
+      - POSTGRES_DB=apollo
+      - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
+    volumes:
+      - ./db/init:/docker-entrypoint-initdb.d
+    secrets:
+      - db-password
+    ports:
+      - "8005:5432"
+
+secrets:
+  db-password:
+    file: db/password.txt

@@ -1,0 +1,17 @@
+[package]
+name = "apollo"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rocket = { version = "0.5.1", features = ["json"] }
+rocket_db_pools = { version = "0.2.0", features = ["sqlx_postgres"] }
+aws-config = { version = "1", optional = true }
+aws-sdk-s3 = { version = "1", optional = true }
+figment = { version = "0.10" }
+dynosaur = { version = "0.3" }
+trait-variant = { version = "0.1" }
+
+[features]
+default = []
+aws_s3 = ["dep:aws-config", "dep:aws-sdk-s3"]
