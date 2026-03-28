@@ -13,7 +13,7 @@ use rocket_db_pools::{
 use crate::{
     guards::DBPool,
     routes::{
-        create_chart::create_chart, create_chart_set::create_chart_set, get_chart::get_chart, get_chart_file::get_chart_file, get_chart_set::get_chart_set, search_charts::search_charts
+        create_chart::create_chart, create_chart_set::create_chart_set, create_chart_set_aux_file::create_chart_set_aux_file, get_chart::get_chart, get_chart_file::get_chart_file, get_chart_set::get_chart_set, get_chart_set_aux_file::get_chart_set_aux_file, search_charts::search_charts
     },
     storage::{FileStoreFairing, MemoryBackendInitializer, S3StorageInitializer},
 };
@@ -81,7 +81,9 @@ fn rocket() -> _ {
                 create_chart_set,
                 create_chart,
                 search_charts,
-                get_chart_file
+                get_chart_file,
+                create_chart_set_aux_file,
+                get_chart_set_aux_file
             ],
         )
         .attach(DBPool::init())

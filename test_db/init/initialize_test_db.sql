@@ -12,6 +12,13 @@ CREATE TABLE charts (
   metadata jsonb
 );
 
+CREATE TABLE chart_set_aux_files (
+  chart_set_id integer REFERENCES chart_sets (chart_set_id),
+  label text NOT NULL,
+  filename text,
+  file_id text NOT NULL
+);
+
 CREATE TABLE api_keys (
   api_key text
 );

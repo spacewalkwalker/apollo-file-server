@@ -23,7 +23,10 @@ pub async fn get_chart_file(mut db: Connection<DBPool>, file_store: &FileStoreHa
         return GetChartFileResponse::InternalError(());
     };
     match file_data {
-        None => GetChartFileResponse::NotFound(()),
+        None => {
+            eprintln!("Storage backend: File ID not found");
+            GetChartFileResponse::NotFound(())
+        }
         Some(data) => {
             GetChartFileResponse::Success(data)
         }

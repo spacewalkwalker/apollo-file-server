@@ -5,7 +5,7 @@ services:
       - POSTGRES_DB=apollo
       - POSTGRES_PASSWORD_FILE=/run/secrets/db-password
     volumes:
-      - ./db/init:/docker-entrypoint-initdb.d
+      - ./test_db/init:/docker-entrypoint-initdb.d
     secrets:
       - db-password
     ports:
@@ -13,4 +13,4 @@ services:
 
 secrets:
   db-password:
-    file: db/password.txt
+    file: test_db/password.txt

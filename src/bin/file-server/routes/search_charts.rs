@@ -55,10 +55,10 @@ pub async fn search_charts(
 
     let sort_condition: &'static str = match &search_criteria.sort {
         None => "",
-        Some(SortOrder::TitleAlphabetical) => "title",
+        Some(SortOrder::TitleAlphabetical) => "ORDER BY title",
         Some(SortOrder::ByMetaTag(direction, _)) => match direction {
-            SortDirection::Ascending => "metadata->$4 ASC",
-            SortDirection::Descending => "metadata->$4 DESC",
+            SortDirection::Ascending => "ORDER BY metadata->$4 ASC",
+            SortDirection::Descending => "ORDER BY metadata->$4 DESC",
         },
     };
     let query = format!(
@@ -72,9 +72,9 @@ pub async fn search_charts(
                 WHEN $5 IS NOT NULL THEN designator = $5
                 ELSE TRUE
             END
+        {sort_condition}
         OFFSET $2
         LIMIT $3
-        {sort_condition}
     "
     );
     let query_results = match sqlx::query(&query)
