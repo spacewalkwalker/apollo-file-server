@@ -80,6 +80,7 @@ fn rocket() -> _ {
     match env::var("PORT") {
         Ok(port) => {
             if let Ok(port) = port.parse::<u16>() {
+                eprintln!("Found PORT env var, starting at {port}");
                 rocket_config = rocket_config.merge(("port", port));
             }
         }
