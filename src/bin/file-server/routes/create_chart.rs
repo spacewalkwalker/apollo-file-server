@@ -1,22 +1,35 @@
-use rocket::{FromForm, Responder, form::Form, fs::TempFile, post, serde::json::Json, tokio::io::AsyncReadExt};
-use rocket_db_pools::{Connection, sqlx::{self, Row}};
+use rocket::{
+    FromForm, Responder, form::Form, fs::TempFile, post, serde::json::Json, tokio::io::AsyncReadExt,
+};
+use rocket_db_pools::{
+    Connection,
+    sqlx::{self, Row},
+};
 
-use crate::{guards::{DBPool, UploadAuth}, metadata, routes::get_chart::ChartObject, storage::FileStoreHandle};
+use crate::{
+    guards::{DBPool, UploadAuth},
+    metadata,
+    routes::get_chart::ChartObject,
+    storage::FileStoreHandle,
+};
 
 #[derive(FromForm)]
 struct CreateChartForm<'a> {
     chart_set_id: i32,
     designator: &'a str,
     metadata: Json<metadata::ChartMetadata>,
-    file: TempFile<'a>,
+    source_chart: Option<i32>,
+    file: Option<TempFile<'a>>,
 }
 
 #[derive(Responder)]
 enum CreateChartResponse {
     #[response(status = 500)]
     InternalError(()),
-    #[response(status = 404)]
-    NotFound(()),
+    #[response(status = 422)]
+    Unprocessable(()),
+    #[response(status = 400)]
+    InvalidRequest(()),
     #[response(status = 201)]
     Created(Json<ChartObject>),
 }
@@ -26,31 +39,50 @@ pub async fn create_chart(
     mut db: Connection<DBPool>,
     file_store: &FileStoreHandle,
     data: Form<CreateChartForm<'_>>,
-    _auth: UploadAuth
+    _auth: UploadAuth,
 ) -> CreateChartResponse {
     eprintln!("create_chart request opened");
-    let Ok(mut chart_file_data_source) = data.file.open().await else {
-        return CreateChartResponse::InternalError(());
-    };
-
-    let mut chart_file_data = Vec::new();
-    let Ok(_) = chart_file_data_source
-        .read_to_end(&mut chart_file_data)
-        .await
-    else {
-        return CreateChartResponse::InternalError(());
-    };
-
-    eprintln!("create_chart file read");
 
     // TODO the request may fail. what do we do to the file in the bucket?
 
-    let uploaded_handle = match file_store.store(chart_file_data).await {
-        Ok(handle) => handle,
-        Err(error) => {
-            eprintln!("Error when storing file: {}", error);
-            return CreateChartResponse::InternalError(());
+    let uploaded_handle = 
+    if let Some(chart_id) = data.source_chart {
+        match sqlx::query("SELECT file_id FROM charts WHERE chart_id = $1")
+            .bind(chart_id)
+            .fetch_optional(&mut **db)
+            .await
+        {
+            Ok(Some(row)) => row.get("file_id"),
+            Ok(None) => {
+                return CreateChartResponse::Unprocessable(());
+            }
+            Err(_) => {
+                return CreateChartResponse::InternalError(());
+            }
         }
+    } else if let Some(file) = &data.file {
+        let Ok(mut chart_file_data_source) = file.open().await else {
+            return CreateChartResponse::InternalError(());
+        };
+
+        let mut chart_file_data = Vec::new();
+        let Ok(_) = chart_file_data_source
+            .read_to_end(&mut chart_file_data)
+            .await
+        else {
+            return CreateChartResponse::InternalError(());
+        };
+
+        eprintln!("create_chart file read");
+        match file_store.store(chart_file_data).await {
+            Ok(handle) => handle,
+            Err(error) => {
+                eprintln!("Error when storing file: {}", error);
+                return CreateChartResponse::InternalError(());
+            }
+        }
+    } else {
+        return CreateChartResponse::InvalidRequest(());
     };
 
     let chart_set =
@@ -85,7 +117,7 @@ pub async fn create_chart(
             // which can only happen if the provided chart_set_id is not in the database
             if database_err.code().map(|code| code.into_owned()) == Some("23503".to_string()) =>
         {
-            return CreateChartResponse::NotFound(());
+            return CreateChartResponse::Unprocessable(());
         }
         Err(error) => {
             eprintln!("Error when storing row in database: {:?}", error);
@@ -106,4 +138,3 @@ pub async fn create_chart(
         metadata: data.metadata.0.clone(),
     }))
 }
-

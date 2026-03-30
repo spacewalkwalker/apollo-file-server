@@ -19,7 +19,7 @@ impl<'a> FromRequest<'a> for UploadAuth {
     type Error = ApiKeyError;
 
     async fn from_request(req: &'a Request<'_>) -> Outcome<Self, Self::Error> {
-        let Outcome::Success(mut db) = Connection::<DBPool>::from_request(req).await else {
+        let Outcome::Success(mut db) = req.guard::<Connection<DBPool>>().await else {
             return Outcome::Error((Status::InternalServerError, ApiKeyError::Other));
         };
 
