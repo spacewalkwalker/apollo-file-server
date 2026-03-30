@@ -14,9 +14,8 @@ COPY src ./src
 # Build a statically linked binary
 RUN cargo build --release --target x86_64-unknown-linux-musl --features aws_s3
 
-# Stage 2: Use scratch for the smallest possible image
-# Scratch is an empty image - just the binary and nothing else
-FROM scratch
+# run stage
+FROM gcr.io/distroless/static-debian13
 
 # Copy SSL certificates for HTTPS support
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
