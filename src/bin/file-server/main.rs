@@ -1,4 +1,6 @@
 
+use std::env;
+
 use figment::{Figment};
 use rocket::{
     routes,
@@ -72,6 +74,18 @@ fn rocket() -> _ {
             ))
         }
     };
+
+    let mut rocket_config = rocket::Config::figment();
+
+    match env::var("PORT") {
+        Ok(port) => {
+            if let Ok(port) = port.parse::<u16>() {
+                rocket_config = rocket_config.merge(("port", port));
+            }
+        }
+        _ => {}
+    }
+
     rocket::build()
         .mount(
             "/",
@@ -86,6 +100,7 @@ fn rocket() -> _ {
                 get_chart_set_aux_file
             ],
         )
+        .configure(rocket_config)
         .attach(DBPool::init())
         .attach(storage_fairing)
 }
