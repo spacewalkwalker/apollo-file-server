@@ -13,7 +13,7 @@ use rocket_db_pools::{
 };
 
 use crate::{
-    guards::DBPool,
+    guards::{DBPool, RequestIDFairing},
     routes::{
         create_chart::create_chart, create_chart_set::create_chart_set, create_chart_set_aux_file::create_chart_set_aux_file, get_chart::get_chart, get_chart_file::get_chart_file, get_chart_set::get_chart_set, get_chart_set_aux_file::get_chart_set_aux_file, search_charts::search_charts
     },
@@ -57,6 +57,7 @@ struct ServerConfig {
 
 #[launch]
 fn rocket() -> _ {
+
     let config: ServerConfig = Figment::new()
         .merge(figment::providers::Env::prefixed("APOLLO_"))
         .extract()
@@ -103,5 +104,6 @@ fn rocket() -> _ {
         )
         .configure(rocket_config)
         .attach(DBPool::init())
+        .attach(RequestIDFairing::new())
         .attach(storage_fairing)
 }

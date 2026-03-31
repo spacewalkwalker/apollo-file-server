@@ -1,3 +1,4 @@
+use chrono::Utc;
 use rocket::{
     FromForm, Responder, form::Form, fs::TempFile, post, serde::json::Json, tokio::io::AsyncReadExt,
 };
@@ -7,7 +8,7 @@ use rocket_db_pools::{
 };
 
 use crate::{
-    guards::{DBPool, UploadAuth},
+    guards::{DBPool, RequestID, UploadAuth},
     metadata,
     routes::get_chart::ChartObject,
     storage::FileStoreHandle,
@@ -34,19 +35,29 @@ enum CreateChartResponse {
     Created(Json<ChartObject>),
 }
 
+macro_rules! stdout_log {
+    ($($val:expr),*) => {
+        {
+            let ctime = Utc::now().format("%Y-%m-%d %H:%M:%S:%f");
+            println!("[{0}] {1}", ctime, format!($($val),*));
+        }
+    }
+}
+
 #[post("/chart", data = "<data>")]
 pub async fn create_chart(
     mut db: Connection<DBPool>,
+    id: RequestID,
     file_store: &FileStoreHandle,
     data: Form<CreateChartForm<'_>>,
     _auth: UploadAuth,
 ) -> CreateChartResponse {
-    eprintln!("create_chart request opened");
+
+    stdout_log!("[req {}] POST /chart", id);
 
     // TODO the request may fail. what do we do to the file in the bucket?
-
-    let uploaded_handle = 
-    if let Some(chart_id) = data.source_chart {
+    let uploaded_handle = if let Some(chart_id) = data.source_chart {
+        stdout_log!("[req {}] validating pre-existing chart id {}", id, chart_id);
         match sqlx::query("SELECT file_id FROM charts WHERE chart_id = $1")
             .bind(chart_id)
             .fetch_optional(&mut **db)
@@ -73,11 +84,13 @@ pub async fn create_chart(
             return CreateChartResponse::InternalError(());
         };
 
-        eprintln!("create_chart file read");
+        stdout_log!("[req {}] uploading new file", id);
         match file_store.store(chart_file_data).await {
-            Ok(handle) => handle,
+            Ok(handle) => {
+                stdout_log!("[req {}] file uploaded under handle {}", id, handle);
+                handle
+            }
             Err(error) => {
-                eprintln!("Error when storing file: {}", error);
                 return CreateChartResponse::InternalError(());
             }
         }
@@ -125,9 +138,10 @@ pub async fn create_chart(
         }
     };
 
-    eprintln!("entry added to database");
 
     let chart_id = insert_query_results.get("chart_id");
+
+    stdout_log!("[req {}] inserted entry in DB with ID {}", id, chart_id);
 
     CreateChartResponse::Created(Json(ChartObject {
         song_title: chart_set.get("title"),
