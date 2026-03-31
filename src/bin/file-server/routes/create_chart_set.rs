@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use rocket::{uri, Responder, http::{Header, hyper::header::LOCATION}, post, serde::{Deserialize, json::Json}};
 use rocket_db_pools::{Connection, sqlx::{self, Row}};
 
@@ -8,8 +10,8 @@ use crate::routes::get_chart_set::rocket_uri_macro_get_chart_set;
 #[derive(Deserialize)]
 #[serde(crate = "rocket::serde")]
 struct CreateChartSetReq<'a> {
-    title: &'a str,
-    artist: &'a str,
+    title: Cow<'a, str>,
+    artist: Cow<'a, str>,
 }
 
 #[derive(Responder)]
@@ -29,8 +31,8 @@ pub async fn create_chart_set(
     let result = sqlx::query(
         "INSERT INTO chart_sets (title, artist) VALUES ($1, $2) RETURNING chart_set_id",
     )
-    .bind(set_data.title)
-    .bind(set_data.artist)
+    .bind(&set_data.title)
+    .bind(&set_data.artist)
     .fetch_one(&mut **db)
     .await;
     match result {
